@@ -4,6 +4,7 @@ from config import KEYMAP, WIN, LOSE, DEFAULT_BOARD
 import sys
 import gamelogic
 import displaylogic
+from operator import attrgetter
 from displaylogic import Screen
 
 IS_WINDOWS = sys.platform == "win32"
@@ -13,7 +14,7 @@ if IS_WINDOWS:
 
 ticks = 0
 
-def play(screen, state=None):
+def play(screen, state=None, pause_after_move=.5):
     global ticks
     if state is None:
         state = gamelogic.add_next_piece(DEFAULT_BOARD)
@@ -36,17 +37,18 @@ def play(screen, state=None):
             screen.print_at(str(ticks),0,40)
             screen.refresh()
             event = screen.get_event()
-            if event:
-                ticks += 1
-                displaylogic.event_to_move(event)
+            if event and displaylogic.event_to_move(event):
                 move = displaylogic.event_to_move(event)
                 if move:
                     valid_move_found = True
             if IS_WINDOWS and not valid_move_found:
                 arrows_pressed = [GetAsyncKeyState(vkcode) for vkcode in (VK_DOWN, VK_UP, VK_LEFT, VK_RIGHT)]
-                if arrows_pressed.count(1) == 1:
-                    move = ('down','up','left','right')[arrows_pressed.index(True)]
-                    valid_move_found = True
+                if arrows_pressed.count(0) == 3:
+                    for i, keystate in enumerate(arrows_pressed):
+                        if keystate != 0:
+                            move = ('down','up','left','right')[i]
+                            valid_move_found = True
+                            break
         # Respond accordingly
         if move == 'quit':
             sys.exit()
@@ -54,6 +56,8 @@ def play(screen, state=None):
             state = gamelogic.move(state, move)
             displaylogic.print_numbers(screen, state)
             screen.refresh()
+            sleep(pause_after_move)
+    sleep(5)
 
 if __name__ == "__main__":
     try:

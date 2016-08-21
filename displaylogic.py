@@ -106,5 +106,7 @@ for move,keycodes in MOVES.items():
         EVENT_TO_MOVE[k] = move
 
 def event_to_move(event):
-    return EVENT_TO_MOVE.get(event.key_code,None)
-Screen.get_event
+    try:
+        return EVENT_TO_MOVE.get(event.key_code,None)
+    except AttributeError:
+        return None
