@@ -1,24 +1,62 @@
 from msvcrt import getch
 from time import sleep
 from config import KEYMAP, WIN, LOSE, DEFAULT_BOARD
+import sys
 import gamelogic
-from displaylogic import print_board
+import displaylogic
+from displaylogic import Screen
 
+IS_WINDOWS = sys.platform == "win32"
+if IS_WINDOWS:
+    from win32api import GetAsyncKeyState
+    from win32con import VK_DOWN, VK_UP, VK_LEFT, VK_RIGHT
 
-def play(state=None, delay=.25):
+ticks = 0
+
+def play(screen, state=None):
+    global ticks
     if state is None:
         state = gamelogic.add_next_piece(DEFAULT_BOARD)
+    else:
+        raise ValueError(state)
+    # Initializing the board
+    displaylogic.print_board(screen) # initialize the board
+    displaylogic.print_numbers(screen, state) # draw the pieces
+    # Play the game
     while state not in (WIN, LOSE):
-        print_board(state)
-        move = None
-        while not move:
-            m_ = getch()
-            if m_ in KEYMAP:
-                move = KEYMAP[m_]
-            sleep(delay)
-        state = gamelogic.move(state, move)
-    print_board(state)
-
+        # Redraw if user has resized terminal
+        if screen.has_resized():
+            screen.clear()
+            displaylogic.print_board(screen)
+            displaylogic.print_numbers(screen, state)
+        screen.refresh()
+        # Figure out the player's move
+        valid_move_found = False
+        while not valid_move_found:
+            screen.print_at(str(ticks),0,40)
+            screen.refresh()
+            event = screen.get_event()
+            if event:
+                ticks += 1
+                displaylogic.event_to_move(event)
+                move = displaylogic.event_to_move(event)
+                if move:
+                    valid_move_found = True
+            if IS_WINDOWS and not valid_move_found:
+                arrows_pressed = [GetAsyncKeyState(vkcode) for vkcode in (VK_DOWN, VK_UP, VK_LEFT, VK_RIGHT)]
+                if arrows_pressed.count(1) == 1:
+                    move = ('down','up','left','right')[arrows_pressed.index(True)]
+                    valid_move_found = True
+        # Respond accordingly
+        if move == 'quit':
+            sys.exit()
+        else:
+            state = gamelogic.move(state, move)
+            displaylogic.print_numbers(screen, state)
+            screen.refresh()
 
 if __name__ == "__main__":
-    play()
+    try:
+        displaylogic.Screen.wrapper(play)
+    except KeyboardInterrupt:
+        sleep(10)
